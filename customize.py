@@ -69,7 +69,7 @@ def _getColStyleName(cellValue, colId, headerData):
 			styleName = styleName[0].lower() + styleName[1:] + 'Style'
 		else:
 			styleName = 'defaultStyle'
-		print "Style selected as %s for value <%s>, column hdr:%s"%(styleName, cellValue, headerData[colId])
+		#print "Style selected as %s for value <%s>, column hdr:%s"%(styleName, cellValue, headerData[colId])
 	return styleName
 
 _isStatusColumn = lambda columnHdr: columnHdr.lower().find('status') >= 0

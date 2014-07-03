@@ -28,6 +28,7 @@ class DataHandler(object):
 			localHeaders.insert(insertAfterId, hdr)
 			self._logger.write('Saving new header %s in posId:%d\n'%(hdr, insertAfterId))
 		self._hdr = localHeaders
+		if 'Hint' not in self._hdr: self._hdr.append('Hint')
 		self._setIndexes()
 
 	def _setIndexes(self):
@@ -35,7 +36,7 @@ class DataHandler(object):
 		self._fidIndex = self._hdr.index('Feature or Subfeature')
 		self._fidIndexSrc = self._srcHdr.index('Feature or Subfeature')
 		self._priorityIndex = self._hdr.index('Common RL Product Backlog Priority')
-		self._priorityIndexSrc = self._srcHdr.index('Common RL Product Backlog Priority') 
+		self._priorityIndexSrc = self._srcHdr.index('Common RL Product Backlog Priority')
 		self._hintIndex = self._hdr.index('Hint')
 		self._srcFidIndexMap = {self._srcData[rowId][self._fidIndexSrc]: rowId for rowId in range(0, len(self._srcData))}
 		#print self._srcFidIndexMap.keys()

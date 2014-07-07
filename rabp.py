@@ -12,7 +12,7 @@ from FBPLoader import FBPLoader
 #File names and sheet name
 inputFileName = "LTE eNB Feature Build Plan.xlsm"
 raBacklogFileName = "OM RA Backlog.xls"
-workingFolder = "D:\\FOT\\RABP\\"
+workingFolder = os.getcwd()
 fbpFileAbsPath = workingFolder + pathSep + inputFileName
 raBacklogPath = workingFolder + pathSep + raBacklogFileName
 	

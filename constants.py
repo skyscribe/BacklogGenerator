@@ -37,9 +37,13 @@ requiredColumnsSorted = [
 	"FOT",
 	"Agreed last SW delivery",
 	"Agreed EI execution  start",
+	"TDD Sub-Area",
 	"Feature Team",
 	"FB_FT",
 	"Status_FT",
+	"RealRemaining effort_FT",
+	"i_FT",
+	"EI included",
 
 	#OM status
 	"FB_BTSOM",

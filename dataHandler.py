@@ -4,6 +4,9 @@ from copy import deepcopy
 class DataHandler(object):
 	def __init__(self, srcData, srcHdr, dstHdr, logger):
 		self._srcData = deepcopy(srcData)
+		for row in [record for record in self._srcData if len(str(record[0])) == 0 ]:
+			self._srcData.remove(row)
+
 		self._srcHdr = deepcopy(srcHdr) #_requiredColumnsSorted
 		self._hdr = deepcopy(srcHdr) #new list than reference
 		self._dstHdr = deepcopy(dstHdr) #_requiredFBPColumnsSorted
@@ -109,16 +112,22 @@ class DataHandler(object):
 				diffColIds.append(col)
 		for col in diffColIds:
 			if (rowRecord[col] == 'default') and (not self._isNewCol(col)): 
-				#Filled in during parsing - definitely local column
+				#Filled in during parsing (populate data previously) - definitely local column
 				rowRecord[col] = localRecord[self._getLocalColId(col)]
 			else:
-				#TODO: check other cases - untouched
-				#self._logger.write(u'Conflict found for feature <%s> with column:%s, fbp:%s, local:%s\n'%(
-				#		rowRecord[self._fidIndex], self._hdr[col], rowRecord[col], 
-				#		self._isNewCol(col) and u"NONE" or localRecord[self._getLocalColId(col)]))
-				pass
+				localValue = localRecord[self._getLocalColId(col)]
+				newValue = rowRecord[col]
+				if len(str(localValue)) > 0:
+					if len(str(newValue)) > 0:
+						rowRecord[col] = newValue #keep new value and overwrite local
+					else:
+						rowRecord[col] = localValue #New value is "", keep local
+				else:
+					#Keep new value
+					rowRecord[col] = newValue
+					pass
 		if len(diffColIds) > 0:
-			rowRecord[self._hintIndex] = u'merged'
+			rowRecord[self._hintIndex] = unicode(','.join([str(id) for id in diffColIds]))
 		else:
 			rowRecord[self._hintIndex] = u'updated'
 		return diffColIds

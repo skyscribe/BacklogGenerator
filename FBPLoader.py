@@ -19,7 +19,7 @@ class FBPLoader(object):
 	def parseHeaderIndexes(self, retainAllReqHdrs):
 		''' parse header data and save meta data'''
 		headline = self._fbp.row(self._headRowIdx)
-		headvalues = [c.value for c in headline if len(str(c.value)) > 0]
+		headvalues = [c.value for c in headline if len(unicode(c.value)) > 0]
 		self._headData = headvalues
 		#print headvalues
 		

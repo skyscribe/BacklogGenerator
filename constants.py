@@ -47,20 +47,19 @@ requiredColumnsSorted = [
 
 	#OM status
 	"FB_BTSOM",
+	"i_BTSOM",
 	"Status_BTSOM",
 	"Site_BTSOM",
-	"Initial effort_BTSOM",
-	"i_BTSOM",
-	"eTM_BTSOM",
 	"OM LTE_Site",
-	"Initial Effort_OM LTE",
+	"OMRefa_Site",
 	"RealRemaining effort_OM LTE",
+	"RealRemaining effort_OMRefa",
 
 	#TDD CPRI Handler
 	"FB_TDD CPRI H",
+	"i_TDD CPRI H",
 	"Status_TDD CPRI H",
 	"RealRemaining effort_TDD CPRI H",
-	"i_TDD CPRI H",
 
 	#Other reference columns
 	"FB_TDD U-Plane",

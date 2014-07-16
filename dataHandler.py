@@ -115,7 +115,10 @@ class DataHandler(object):
 				#Filled in during parsing (populate data previously) - definitely local column
 				rowRecord[col] = localRecord[self._getLocalColId(col)]
 			else:
-				localValue = localRecord[self._getLocalColId(col)]
+				if self._isNewCol(col):
+					localValue = ''
+				else: 
+					localValue = localRecord[self._getLocalColId(col)]
 				newValue = rowRecord[col]
 				if len(str(localValue)) > 0:
 					if len(str(newValue)) > 0:

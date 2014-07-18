@@ -97,6 +97,6 @@ def getColOutlineLevel(colId, headerData = requiredColumnsSorted):
 		level1ColumnIds = [headerData.index(hdrName) for hdrName in headerData \
 							if level1ColumnsSorted.count(hdrName) == 1]
 	if colId in level1ColumnIds:
-		return 1
+		return 0
 	else:
-		return 2
+		return 1

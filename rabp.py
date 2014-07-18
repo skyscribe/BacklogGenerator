@@ -54,8 +54,8 @@ class RABacklogGenerator(object):
 		self._requiredColumnsSorted = self._raSheetIn.getAllHeaders()
 
 	def generate(self):
-		rowIds = self._fbp.filterRowsByColPred(['Requirement Area', 'i_TDD CPRI H', 'Site_BTSOM', 'OM LTE_Site'],
-			lambda x: (x[0] == "TDD-AifSiteS") or (x[1] == 'x') or (x[2] == 'Hzu') or (x[3] == 'Hzu'))
+		rowIds = self._fbp.filterRowsByColPred(['Requirement Area', 'i_TDD CPRI H', 'Site_BTSOM', 'OM LTE_Site',
+			'OMRefa_Site'], lambda x: (x[0] == "TDD-AifSiteS") or (x[1] == 'x') or (x[1] == 'u') or (x[2] == 'Hzu') or (x[3] == 'Hzu'))
 		getCellValue = lambda rowId, rowHdr: self._fbpSheet.cell(rowId, self._fbpIndexMap[rowHdr]).value
 		
 		self._dataHandler.collectAndMergeData(rowIds, getCellValue)

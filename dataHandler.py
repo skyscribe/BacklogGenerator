@@ -116,12 +116,12 @@ class DataHandler(object):
 				rowRecord[col] = localRecord[self._getLocalColId(col)]
 			else:
 				if self._isNewCol(col):
-					localValue = ''
+					localValue = u''
 				else: 
 					localValue = localRecord[self._getLocalColId(col)]
 				newValue = rowRecord[col]
-				if len(str(localValue)) > 0:
-					if len(str(newValue)) > 0:
+				if len(unicode(localValue)) > 0:
+					if len(unicode(newValue)) > 0:
 						rowRecord[col] = newValue #keep new value and overwrite local
 					else:
 						rowRecord[col] = localValue #New value is "", keep local

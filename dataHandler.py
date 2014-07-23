@@ -44,7 +44,7 @@ class DataHandler(object):
 		self._srcFidIndexMap = {self._srcData[rowId][self._fidIndexSrc]: rowId for rowId in range(0, len(self._srcData))}
 		#print self._srcFidIndexMap.keys()
 
-	def collectAndMergeData(self, filteredRowIds, getCellValue):
+	def collectAndMergeData(self, filteredRowIds, getCellValue, isFidInUpstream):
 		'''collect data from FBP and merge with local data'''
 		data = []
 		rowId = 0
@@ -57,12 +57,12 @@ class DataHandler(object):
 			rowId = rowId + 1
 
 		if len(self._srcData) > 0:
-			self._mergeData(data)
+			self._mergeData(data, isFidInUpstream)
 		else:
 			self._data = data
 			self._logger.write("Filtered %d records\n"%rowId)
 
-	def _mergeData(self, combinedData):
+	def _mergeData(self, combinedData, isFidInUpstream):
 		'''Merge local loaded data with combinedData (3-way merge), and fill in missing column as possible'''
 		self._isNewCol = lambda colId: self._srcHdr.count(self._hdr[colId]) == 0
 		self._getLocalColId = lambda colId: self._srcHdr.index(self._hdr[colId])
@@ -91,11 +91,28 @@ class DataHandler(object):
 			rowRecord[self._hintIndex] = u'imported'
 			self._data.append(rowRecord)
 
+		self._logger.write('Number of local records:%d, will remove %d of them which are merged!\n'%(len(self._srcData), len(eraseList)))		
 		#Erase merged data
-		self._logger.write('Number of local records:%d, will remove %d of them!\n'%(len(self._srcData), len(eraseList)))
 		for record in eraseList:
-			self._srcData.remove(record)
+			self._srcData.remove(record)		
 
+		#Remove dangling
+		eraseList = []
+		for rowData in self._srcData:
+			fid = rowData[self._fidIndex]
+			if fid.startswith("LBT") or fid.startswith("lbt") or fid.startswith("LTE") or fid.startswith("lte"):
+				if not isFidInUpstream(rowData[self._fidIndex]):
+					#Should have been merged and erased, but left here - implies no impacts
+					eraseList.append(rowData)
+			else:
+				#local feature, keep still
+				self._logger.write("Will keep %s as local\n"%fid)
+				pass
+		self._logger.write('Number of local records:%d, will remove %d of them as dangling!\n'%(len(self._srcData), len(eraseList)))
+		for record in eraseList:
+			self._srcData.remove(record)		
+
+		#Keep local
 		for rowData in self._srcData:
 			self._logger.write("Keep local record with fid=%s\n"%rowRecord[self._fidIndex])
 			rowRecord = [(self._isNewCol(col) and u'unspecified' or rowData[self._getLocalColId(col)])
@@ -113,6 +130,7 @@ class DataHandler(object):
 		for col in diffColIds:
 			if (rowRecord[col] == 'default') and (not self._isNewCol(col)): 
 				#Filled in during parsing (populate data previously) - definitely local column
+				#self._logger.write("Set col:%d as %s\n"%(col, self._getLocalColId(col)))
 				rowRecord[col] = localRecord[self._getLocalColId(col)]
 			else:
 				if self._isNewCol(col):
@@ -120,6 +138,7 @@ class DataHandler(object):
 				else: 
 					localValue = localRecord[self._getLocalColId(col)]
 				newValue = rowRecord[col]
+				if newValue == u'default': newValue = ''
 				if len(unicode(localValue)) > 0:
 					if len(unicode(newValue)) > 0:
 						rowRecord[col] = newValue #keep new value and overwrite local
@@ -162,7 +181,7 @@ class DataHandler(object):
 		for featureName in [featureName for featureName in parentFeatureList if featureName not in keepList]:
 			#remove all sub-features
 			for row in [row for row in self._data if row[self._fidIndex].find(featureName) == 0]:
-				#self._logger.write('Remove done/obsolete feature:%s since all feature group is done/obsolete!\n'%row[self._fidIndex]);
+				self._logger.write('Remove done/obsolete feature:%s since all feature group is done/obsolete!\n'%row[self._fidIndex]);
 				self._data.remove(row)
 		self._logger.write('Leftover feture number:%d, removed:%d\n'%(len(self._data) - 1, rowCnt - len(self._data)))
 

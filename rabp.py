@@ -57,8 +57,9 @@ class RABacklogGenerator(object):
 		rowIds = self._fbp.filterRowsByColPred(['Requirement Area', 'i_TDD CPRI H', 'Site_BTSOM', 'OM LTE_Site',
 			'OMRefa_Site'], lambda x: (x[0] == "TDD-AifSiteS") or (x[1] == 'x') or (x[1] == 'u') or (x[2] == 'Hzu') or (x[3] == 'Hzu'))
 		getCellValue = lambda rowId, rowHdr: self._fbpSheet.cell(rowId, self._fbpIndexMap[rowHdr]).value
+		isFidInFBP = lambda fid : len(self._fbp.filterRowsByColPred(['Feature or Subfeature'], lambda x: x[0] == fid)) > 0
 		
-		self._dataHandler.collectAndMergeData(rowIds, getCellValue)
+		self._dataHandler.collectAndMergeData(rowIds, getCellValue, isFidInFBP)
 		self._dataHandler.purgeDoneFeatures()
 		self._dataHandler.sortData()
 		self._raData = self._dataHandler.getData()

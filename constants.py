@@ -95,3 +95,11 @@ level1ColumnsSorted = [
 	"FB_TDD U-Plane",
 	"FPO", #customized header
 ]
+
+#Conflict handling for value changes
+retainLocalChangesColumns = [
+	"TDD Sub-Area",
+	"RealRemaining effort_FT",
+	"RealRemaining effort_TDD CPRI H",
+	"RealRemaining effort_OMRefa",
+]

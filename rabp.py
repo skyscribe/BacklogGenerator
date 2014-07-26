@@ -106,8 +106,8 @@ def test1(fbp):
 	RABacklogGenerator(fbp, raBacklogPath).generate()
 
 def generate():
-	logging.getLogger().info("\n~~~~~~~~~~~~Start~~~~~~~~~~~\n")
 	handler = initLogger()
+	logging.getLogger().info("\n~~~~~~~~~~~~Start~~~~~~~~~~~\n")
 	fbp = FBPLoader(fbpFileAbsPath, fbpSheetName)
 	logging.getLogger().info("~~~~~~~~~~~~FBP Loaded now~~~~~~~~~~~")
 	RABacklogGenerator(fbp, raBacklogPath, handler).generate()
@@ -120,6 +120,7 @@ def initLogger():
 	handler.setFormatter(fmt)
 	handler.setLevel(logging.DEBUG)
 	logging.getLogger().addHandler(handler)
+	logging.getLogger().setLevel(logging.DEBUG)
 	return handler	
 
 def testLogger():

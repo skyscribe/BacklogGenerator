@@ -1,6 +1,7 @@
 # coding: utf-8
 from copy import deepcopy
 import logging
+from constants import retainLocalChangesColumns
 
 class DataHandler(object):
 	def __init__(self, srcData, srcHdr, dstHdr, handler):
@@ -74,6 +75,7 @@ class DataHandler(object):
 	def _mergeData(self, combinedData):
 		'''Merge local loaded data with combinedData (3-way merge), and fill in missing column as possible'''
 		self._isNewCol = lambda colId: self._srcHdr.count(self._hdr[colId]) == 0
+		self._shouldRetainCol = lambda colId: retainLocalChangesColumns.count(self._hdr[colId]) > 0
 		self._getLocalColId = lambda colId: self._srcHdr.index(self._hdr[colId])
 		self._data = [combinedData[0]] #Save static header
 
@@ -139,21 +141,16 @@ class DataHandler(object):
 					localValue = localRecord[self._getLocalColId(col)]
 				newValue = rowRecord[col]
 				if newValue == u'default': newValue = ''
-				if len(unicode(localValue)) > 0:
-					if len(unicode(newValue)) > 0:
-						rowRecord[col] = newValue #keep new value and overwrite local
-						self._logger.warning("Updating %s:%s - local:%s, new:%s, take new value anyway since this is imported field",
+
+				if self._shouldRetainCol(col):
+					self._logger.info("Retaining %s:%s - local:%s, new:%s, take local value though new value is different",
 								rowRecord[self._fidIndex], self._hdr[col], localValue, newValue)
-					else:
-						self._logger.info("Retaining %s:%s - local:%s, new:%s, take local value since new value is not set",
-								rowRecord[self._fidIndex], self._hdr[col], localValue, newValue)
-						rowRecord[col] = localValue #New value is "", keep local
+					rowRecord[col] = localValue #New value is "", keep local
 				else:
-					#Keep new value
-					self._logger.debug("Importing %s:%s - take new value %s since local value is not set",
-								rowRecord[self._fidIndex], self._hdr[col], newValue)
-					rowRecord[col] = newValue
-					pass
+					#overwritten
+					rowRecord[col] = newValue #keep new value and overwrite local
+					self._logger.info("Overwritting %s:%s - local:%s, new:%s, take new value anyway since this is imported field",
+							rowRecord[self._fidIndex], self._hdr[col], localValue, newValue)
 		if len(conflictColIds) > 0:
 			rowRecord[self._hintIndex] = unicode(','.join([str(id) for id in conflictColIds]))
 		else:

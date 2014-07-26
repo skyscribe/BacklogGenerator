@@ -10,7 +10,8 @@ class DataHandler(object):
 
 		#Set up logger
 		self._logger = logging.getLogger(__name__)
-		self._logger.addHandler(handler)
+		self._logger.setLevel(logging.DEBUG)
+		#self._logger.addHandler(handler)
 
 		self._srcHdr = deepcopy(srcHdr) #_requiredColumnsSorted
 		self._hdr = deepcopy(srcHdr) #new list than reference
@@ -111,7 +112,7 @@ class DataHandler(object):
 		
 		#Keep local
 		for rowData in self._srcData:
-			self._logger.debug("Keep local record with fid=%s", rowRecord[self._fidIndex])
+			#self._logger.debug("Keep local record with fid=%s", rowRecord[self._fidIndex])
 			rowRecord = [(self._isNewCol(col) and u'unspecified' or rowData[self._getLocalColId(col)])
 									for col in range(0, len(self._hdr))]
 			rowRecord[self._hintIndex] = u'local'

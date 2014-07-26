@@ -28,7 +28,7 @@ class RABacklogGenerator(object):
 
 		import sys
 		self._logger = logging.getLogger(__name__)
-		self._logger.addHandler(handler)
+		self._logger.setLevel(logging.DEBUG)
 
 		self._raSheetName = u'backlog'
 		self._raBacklogPath = raBacklogPath
@@ -106,10 +106,26 @@ def test1(fbp):
 	RABacklogGenerator(fbp, raBacklogPath).generate()
 
 def generate():
-	logging.basicConfig(filename = "rabp.log", level = logging.DEBUG,
-			format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-	from logging.handlers import RotatingFileHandler
-	handler = RotatingFileHandler("rabp.log", maxBytes = 2*1024*1024, backupCount=10)
-
+	logging.getLogger().info("\n~~~~~~~~~~~~Start~~~~~~~~~~~\n")
+	handler = initLogger()
 	fbp = FBPLoader(fbpFileAbsPath, fbpSheetName)
+	logging.getLogger().info("~~~~~~~~~~~~FBP Loaded now~~~~~~~~~~~")
 	RABacklogGenerator(fbp, raBacklogPath, handler).generate()
+	logging.getLogger().info("\n~~~~~~~~~~~~End~~~~~~~~~~~\n")
+
+def initLogger():
+	from logging.handlers import RotatingFileHandler
+	handler = RotatingFileHandler(filename = "rabp.log", maxBytes = 2*1024*1024, backupCount=10)
+	fmt = logging.Formatter(fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+	handler.setFormatter(fmt)
+	handler.setLevel(logging.DEBUG)
+	logging.getLogger().addHandler(handler)
+	return handler	
+
+def testLogger():
+	handler = initLogger()
+	logger = logging.getLogger("test")
+	logger.setLevel(logging.DEBUG)
+	logger.info("test log")
+
+	logging.getLogger("test.a").debug("debug info")

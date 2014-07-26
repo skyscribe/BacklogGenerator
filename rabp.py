@@ -58,9 +58,15 @@ class RABacklogGenerator(object):
 
 	def generate(self):
 		''' Generate OM RA backlog per filtering/merge/purge/sort '''
-		columnsForRAChecking = ['Requirement Area', 'i_TDD CPRI H', 'Site_BTSOM', 'OM LTE_Site', 'OMRefa_Site']
-		filterCriteria = lambda cols : (cols[0] == "TDD-AifSiteS") or (cols[1] == 'x') or (cols[1] == 'u') \
-				or (cols[2] == 'Hzu') or (cols[3] == 'Hzu')
+		columnsForRAChecking = ['Requirement Area',
+				'i_FT', 'Feature Team',
+				'i_TDD CPRI H',
+				'Site_BTSOM', 'OM LTE_Site', 'OMRefa_Site',
+		]
+		filterCriteria = lambda cols : (cols[0] == "TDD-AifSiteS") \
+				or ( ((cols[1] == 'x') or (cols[1] == 'u') ) and ((cols[2] == 'HZ03') or (cols[2]  == 'HZ04')) )\
+				or ( (cols[3] == 'x') or (cols[3] == 'u') ) \
+				or (cols[4] == 'Hzu') or (cols[5] == 'Hzu') or (cols[6] == 'Hzu') 
 		rowIds = self._fbp.filterRowsByColPred(columnsForRAChecking, filterCriteria)
 		self._logger.info("Totally %d records filtered from upstream FBP file", len(rowIds))
 

@@ -11,8 +11,9 @@ class FBPLoader(object):
 	def __init__(self, wbPath, sheetName, headerIdx = headRowIdx, retainAllReqHdrs = False):
 		self._fbp = xlrd.open_workbook(wbPath).sheet_by_name(sheetName)
 		self._wbName = wbPath
-		import sys
-		self._logger = sys.stdout
+		import logging
+		self._logger = logging.getLogger("FBPLoader")
+		self._logger.setLevel(logging.DEBUG)
 		self._headRowIdx = headerIdx
 		self.parseHeaderIndexes(retainAllReqHdrs)
 		
@@ -43,8 +44,9 @@ class FBPLoader(object):
 	def filterRowsByColPred(self, colNameList, pred):
 		''' filter data by certain criteria pred(cellDataList)'''
 		colIds = [self._fbpIndexMap[col] for col in colNameList]
+		getValue = lambda rid: [self._fbp.cell(rid, colId).value for colId in colIds]
 		return [rid for rid in range(firstDataRowIdx, self._fbp.nrows) \
-			if pred([self._fbp.cell(rid, colId).value for colId in colIds]) ]
+			if pred(getValue(rid)) ]
 
 	def getInterestedHeaderList(self):
 		return self._headData

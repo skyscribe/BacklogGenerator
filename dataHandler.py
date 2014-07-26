@@ -164,7 +164,7 @@ class DataHandler(object):
 			fid = rowData[self._fidIndex]
 			if fid.startswith("LBT") or fid.startswith("lbt") or fid.startswith("LTE") or fid.startswith("lte"):
 				if not self._isFidValidInUpstream(rowData[self._fidIndex]):
-					#Should have been merged and erased, but left here - implies no impacts
+					self._logger.warning("Tag %s as to be removed since it's no longer a valid official feature in FBP now", fid)
 					eraseList.append(rowData)
 			else:
 				#local feature, keep still

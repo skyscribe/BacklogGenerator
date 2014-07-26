@@ -3,6 +3,7 @@
 *.exe
 *.xls
 *.xlsm
+*.log
 RABP.zip
 TODO.txt
 rabp.sublime-project

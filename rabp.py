@@ -2,6 +2,7 @@
 import xlrd
 import xlwt
 import os
+import logging
 
 from customize import getCellStyle, getWidthByColumn, getColOutlineLevel
 from constants import requiredColumnsSorted
@@ -17,7 +18,7 @@ fbpFileAbsPath = workingFolder + pathSep + inputFileName
 raBacklogPath = workingFolder + pathSep + raBacklogFileName
 	
 class RABacklogGenerator(object):
-	def __init__(self, fbpLoader, raBacklogPath):
+	def __init__(self, fbpLoader, raBacklogPath, handler):
 		self._fbp = fbpLoader
 		self._fbpSheet = self._fbp.getBacklogSheetObj()
 		self._requiredFBPColumnsSorted = self._fbp._requiredColumnsSorted
@@ -26,20 +27,22 @@ class RABacklogGenerator(object):
 		self._raDataIn = []
 
 		import sys
-		self._logger = sys.stdout
+		self._logger = logging.getLogger(__name__)
+		self._logger.addHandler(handler)
+
 		self._raSheetName = u'backlog'
 		self._raBacklogPath = raBacklogPath
 		self.loadRABacklog()
 
 		self._dataHandler = DataHandler(self._raDataIn, srcHdr = self._requiredColumnsSorted, \
-			dstHdr = self._requiredFBPColumnsSorted, logger = self._logger)
+			dstHdr = self._requiredFBPColumnsSorted, handler = handler)
 
 	def loadRABacklog(self):
 		try:
 			self._raSheetIn = FBPLoader(self._raBacklogPath, self._raSheetName, headerIdx = 0, retainAllReqHdrs = True)
 			self.loadRAData()
 		except Exception, e:
-			self._logger.write("Available input sheet not valid, will be cleared:%s\n"%e.message) 
+			self._logger.warning("Available input sheet not valid, will be cleared:%s\n"%e.message) 
 			self._raSheetIn = []
 
 		#Result sheet
@@ -54,12 +57,23 @@ class RABacklogGenerator(object):
 		self._requiredColumnsSorted = self._raSheetIn.getAllHeaders()
 
 	def generate(self):
-		rowIds = self._fbp.filterRowsByColPred(['Requirement Area', 'i_TDD CPRI H', 'Site_BTSOM', 'OM LTE_Site',
-			'OMRefa_Site'], lambda x: (x[0] == "TDD-AifSiteS") or (x[1] == 'x') or (x[1] == 'u') or (x[2] == 'Hzu') or (x[3] == 'Hzu'))
+		''' Generate OM RA backlog per filtering/merge/purge/sort '''
+		columnsForRAChecking = ['Requirement Area', 'i_TDD CPRI H', 'Site_BTSOM', 'OM LTE_Site', 'OMRefa_Site']
+		filterCriteria = lambda cols : (cols[0] == "TDD-AifSiteS") or (cols[1] == 'x') or (cols[1] == 'u') \
+				or (cols[2] == 'Hzu') or (cols[3] == 'Hzu')
+		rowIds = self._fbp.filterRowsByColPred(columnsForRAChecking, filterCriteria)
+		self._logger.info("Totally %d records filtered from upstream FBP file", len(rowIds))
+
 		getCellValue = lambda rowId, rowHdr: self._fbpSheet.cell(rowId, self._fbpIndexMap[rowHdr]).value
-		isFidInFBP = lambda fid : len(self._fbp.filterRowsByColPred(['Feature or Subfeature'], lambda x: x[0] == fid)) > 0
+
+		from copy import copy
+		columnsForFeatureCheckings = copy(columnsForRAChecking)
+		columnsForFeatureCheckings.append('Feature or Subfeature')
+		isFidValidInFBP = lambda fid: len(self._fbp.filterRowsByColPred(columnsForFeatureCheckings,
+				lambda cols: filterCriteria(cols[:-1]) and cols[-1] == fid )) > 0
 		
-		self._dataHandler.collectAndMergeData(rowIds, getCellValue, isFidInFBP)
+		self._dataHandler.collectAndMergeData(rowIds, getCellValue, isFidValidInFBP)
+
 		self._dataHandler.purgeDoneFeatures()
 		self._dataHandler.sortData()
 		self._raData = self._dataHandler.getData()
@@ -92,5 +106,10 @@ def test1(fbp):
 	RABacklogGenerator(fbp, raBacklogPath).generate()
 
 def generate():
+	logging.basicConfig(filename = "rabp.log", level = logging.DEBUG,
+			format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+	from logging.handlers import RotatingFileHandler
+	handler = RotatingFileHandler("rabp.log", maxBytes = 2*1024*1024, backupCount=10)
+
 	fbp = FBPLoader(fbpFileAbsPath, fbpSheetName)
-	RABacklogGenerator(fbp, raBacklogPath).generate()	
+	RABacklogGenerator(fbp, raBacklogPath, handler).generate()

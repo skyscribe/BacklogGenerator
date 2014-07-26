@@ -1,17 +1,22 @@
 # coding: utf-8
 from copy import deepcopy
+import logging
 
 class DataHandler(object):
-	def __init__(self, srcData, srcHdr, dstHdr, logger):
+	def __init__(self, srcData, srcHdr, dstHdr, handler):
 		self._srcData = deepcopy(srcData)
 		for row in [record for record in self._srcData if len(str(record[0])) == 0 ]:
 			self._srcData.remove(row)
+
+		#Set up logger
+		self._logger = logging.getLogger(__name__)
+		self._logger.addHandler(handler)
 
 		self._srcHdr = deepcopy(srcHdr) #_requiredColumnsSorted
 		self._hdr = deepcopy(srcHdr) #new list than reference
 		self._dstHdr = deepcopy(dstHdr) #_requiredFBPColumnsSorted
 		self._data = []
-		self._logger = logger
+
 		self._mergeHeader()
 
 	def getHeader(self):
@@ -29,7 +34,7 @@ class DataHandler(object):
 					if self._dstHdr[preId] in localHeaders]
 			insertAfterId = (len(pre) != 0) and localHeaders.index(pre[0]) + 1 or 0
 			localHeaders.insert(insertAfterId, hdr)
-			self._logger.write('Saving new header %s in posId:%d\n'%(hdr, insertAfterId))
+			self._logger.info('Saving new header %s in posId:%d', hdr, insertAfterId)
 		self._hdr = localHeaders
 		if 'Hint' not in self._hdr: self._hdr.append('Hint')
 		self._setIndexes()
@@ -46,6 +51,9 @@ class DataHandler(object):
 
 	def collectAndMergeData(self, filteredRowIds, getCellValue, isFidInUpstream):
 		'''collect data from FBP and merge with local data'''
+		self._isFidValidInUpstream = isFidInUpstream
+
+		numOfLocals = len(self._srcData)
 		data = []
 		rowId = 0
 		data.append([unicode(hdr) for hdr in self._hdr]) #Header
@@ -57,12 +65,12 @@ class DataHandler(object):
 			rowId = rowId + 1
 
 		if len(self._srcData) > 0:
-			self._mergeData(data, isFidInUpstream)
+			self._mergeData(data)
 		else:
 			self._data = data
-			self._logger.write("Filtered %d records\n"%rowId)
+			self._logger.info("Local records %d, filtered %d records(upstream), %d records left", numOfLocals, rowId, len(self._data))
 
-	def _mergeData(self, combinedData, isFidInUpstream):
+	def _mergeData(self, combinedData):
 		'''Merge local loaded data with combinedData (3-way merge), and fill in missing column as possible'''
 		self._isNewCol = lambda colId: self._srcHdr.count(self._hdr[colId]) == 0
 		self._getLocalColId = lambda colId: self._srcHdr.index(self._hdr[colId])
@@ -70,7 +78,7 @@ class DataHandler(object):
 
 		mergeCandidates = [rowRecord for rowRecord in combinedData[1:] if self._srcFidIndexMap.has_key(rowRecord[self._fidIndex])]
 		importList = [rowRecord for rowRecord in combinedData[1:] if rowRecord not in mergeCandidates]
-		self._logger.write('We have %d records for merge, %d records for import\n'%(len(mergeCandidates), len(importList)))
+		self._logger.info('We have %d records for merge, %d records for import', len(mergeCandidates), len(importList))
 
 		eraseList = []
 		for rowRecord in mergeCandidates:
@@ -78,51 +86,41 @@ class DataHandler(object):
 			localRowId = self._srcFidIndexMap[fid]
 			localRecord = self._srcData[localRowId]
 			assert(localRecord[self._fidIndexSrc] == fid)
-			#self._logger.write('comparing local:%s<%d> with fbp:%s\n'%(localRecord[self._fidIndex], localRowId, fid))
+			#self._logger.debug('comparing local:%s<%d> with fbp:%s', localRecord[self._fidIndex], localRowId, fid)
 			self._mergeRecord(rowRecord, localRecord)
 			#Remove local record accordingly
-			#self._logger.write('Merged record with fid=%s\n'%fid)
+			#self._logger.debug('Merged record with fid=%s'%fid)
 			eraseList.append(localRecord)
 			self._data.append(rowRecord)
 		
 		#Update status for imported ones	
 		for rowRecord in importList:
-			#self._logger.write('Updating new record with fid=%s\n'%rowRecord[self._fidIndex])
+			#self._logger.debug('Updating new record with fid=%s'%rowRecord[self._fidIndex])
 			rowRecord[self._hintIndex] = u'imported'
+			for col in range(0, len(rowRecord)):
+				if rowRecord[col] == u'default':
+					rowRecord[col] = ''
 			self._data.append(rowRecord)
 
-		self._logger.write('Number of local records:%d, will remove %d of them which are merged!\n'%(len(self._srcData), len(eraseList)))		
+		self._logger.info('Number of local records:%d, will remove %d of them which are merged!', len(self._srcData), len(eraseList))		
 		#Erase merged data
 		for record in eraseList:
-			self._srcData.remove(record)		
+			self._srcData.remove(record)	
 
-		#Remove dangling
-		eraseList = []
-		for rowData in self._srcData:
-			fid = rowData[self._fidIndex]
-			if fid.startswith("LBT") or fid.startswith("lbt") or fid.startswith("LTE") or fid.startswith("lte"):
-				if not isFidInUpstream(rowData[self._fidIndex]):
-					#Should have been merged and erased, but left here - implies no impacts
-					eraseList.append(rowData)
-			else:
-				#local feature, keep still
-				self._logger.write("Will keep %s as local\n"%fid)
-				pass
-		self._logger.write('Number of local records:%d, will remove %d of them as dangling!\n'%(len(self._srcData), len(eraseList)))
-		for record in eraseList:
-			self._srcData.remove(record)		
-
+		self._removeDangling()
+		
 		#Keep local
 		for rowData in self._srcData:
-			self._logger.write("Keep local record with fid=%s\n"%rowRecord[self._fidIndex])
+			self._logger.debug("Keep local record with fid=%s", rowRecord[self._fidIndex])
 			rowRecord = [(self._isNewCol(col) and u'unspecified' or rowData[self._getLocalColId(col)])
 									for col in range(0, len(self._hdr))]
 			rowRecord[self._hintIndex] = u'local'
 			self._data.append(rowRecord)
-		self._logger.write("Filtered %d records\n"%len(self._data))
+		self._logger.info("Filtered %d records", len(self._data))
 
 	def _mergeRecord(self, rowRecord, localRecord):
 		diffColIds = []
+		conflictColIds = []
 		for col in range(0, len(rowRecord)): 
 			if self._isNewCol(col) or localRecord[self._getLocalColId(col)] != rowRecord[col]:
 				#new column or same colmn with different value
@@ -130,29 +128,55 @@ class DataHandler(object):
 		for col in diffColIds:
 			if (rowRecord[col] == 'default') and (not self._isNewCol(col)): 
 				#Filled in during parsing (populate data previously) - definitely local column
-				#self._logger.write("Set col:%d as %s\n"%(col, self._getLocalColId(col)))
+				#self._logger.debug("[deault found] Set col:%d as %s", col, self._getLocalColId(col))
 				rowRecord[col] = localRecord[self._getLocalColId(col)]
 			else:
 				if self._isNewCol(col):
 					localValue = u''
-				else: 
+				else:
+					conflictColIds.append(col) 
 					localValue = localRecord[self._getLocalColId(col)]
 				newValue = rowRecord[col]
 				if newValue == u'default': newValue = ''
 				if len(unicode(localValue)) > 0:
 					if len(unicode(newValue)) > 0:
 						rowRecord[col] = newValue #keep new value and overwrite local
+						self._logger.warning("Updating %s:%s - local:%s, new:%s, take new value anyway since this is imported field",
+								rowRecord[self._fidIndex], self._hdr[col], localValue, newValue)
 					else:
+						self._logger.info("Retaining %s:%s - local:%s, new:%s, take local value since new value is not set",
+								rowRecord[self._fidIndex], self._hdr[col], localValue, newValue)
 						rowRecord[col] = localValue #New value is "", keep local
 				else:
 					#Keep new value
+					self._logger.debug("Importing %s:%s - take new value %s since local value is not set",
+								rowRecord[self._fidIndex], self._hdr[col], newValue)
 					rowRecord[col] = newValue
 					pass
-		if len(diffColIds) > 0:
-			rowRecord[self._hintIndex] = unicode(','.join([str(id) for id in diffColIds]))
+		if len(conflictColIds) > 0:
+			rowRecord[self._hintIndex] = unicode(','.join([str(id) for id in conflictColIds]))
 		else:
 			rowRecord[self._hintIndex] = u'updated'
 		return diffColIds
+
+	def _removeDangling(self):
+		''' Remove dangling old records'''
+		eraseList = []
+		for rowData in self._srcData:
+			fid = rowData[self._fidIndex]
+			if fid.startswith("LBT") or fid.startswith("lbt") or fid.startswith("LTE") or fid.startswith("lte"):
+				if not self._isFidValidInUpstream(rowData[self._fidIndex]):
+					#Should have been merged and erased, but left here - implies no impacts
+					eraseList.append(rowData)
+			else:
+				#local feature, keep still
+				self._logger.info("Will keep %s as local - suppose this is a internal feature", fid)
+				if not fid.startswith('OAM'):
+					self._logger.warning("Malformed dangling feature %s found, check if it's properly set!", fid)
+		
+		self._logger.info('Number of local records:%d, will remove %d of them as dangling!', len(self._srcData), len(eraseList))
+		for record in eraseList:
+			self._srcData.remove(record)
 
 	def purgeDoneFeatures(self):
 		'''Perge the done features if all its sub-features and the parent feature is done'''
@@ -175,15 +199,15 @@ class DataHandler(object):
 			#Have unDone features, and (have raUnDones or parent lead by RA) 
 			if len(unDones) > 0 and ((len(unDonesInRA) > 0) or isFeatureInMyRA(parent)):
 				keepList.append(parent)
-				self._logger.write('Parent feature %s will be kept since below features undone:%s\n'%(\
-						parent, ','.join([row[self._fidIndex] for row in unDones])))
+				self._logger.info('Parent feature %s will be kept since below features undone:%s',
+						parent, ','.join([row[self._fidIndex] for row in unDones]))
 
 		for featureName in [featureName for featureName in parentFeatureList if featureName not in keepList]:
 			#remove all sub-features
 			for row in [row for row in self._data if row[self._fidIndex].find(featureName) == 0]:
-				self._logger.write('Remove done/obsolete feature:%s since all feature group is done/obsolete!\n'%row[self._fidIndex]);
+				self._logger.debug('Remove done/obsolete feature:%s since all feature group is done/obsolete!', row[self._fidIndex]);
 				self._data.remove(row)
-		self._logger.write('Leftover feture number:%d, removed:%d\n'%(len(self._data) - 1, rowCnt - len(self._data)))
+		self._logger.info('Leftover feature number:%d, removed:%d', len(self._data) - 1, rowCnt - len(self._data))
 
 	def sortData(self):
 		''' sort data by backlog priority'''
@@ -197,4 +221,4 @@ class DataHandler(object):
 
 		self._data = [self._data[0]]
 		self._data.extend(dataContent)
-		self._logger.write("data sorted by column:%s\n"%(self._data[0][self._priorityIndex]))
+		self._logger.info("Data sorted by column:%s", self._data[0][self._priorityIndex])

@@ -9,7 +9,7 @@ class FBPChecker(object):
 		self._logger = logging.getLogger("FBPChecker")
 		self._logger.setLevel(logging.DEBUG)
 		self._fbp = FBPLoader(fbpFileAbsPath, fbpSheetName)
-		self._effInvalid = lambda eff: str(eff) == '' or (not str(eff).isdigit()) or int(eff) <= 1
+		self._effInvalid = lambda eff: str(eff) == '' or (not str(eff).replace('.', '').isdigit()) or int(eff) <= 1
 
 	def checkAll(self):
 		self.checkTODO()
@@ -25,13 +25,15 @@ class FBPChecker(object):
 			and (cols[1] == 'x' or cols[1] == 'u'), banner = "StatusConflictCheckOnCPRIH")
 
 	def checkForCPRIHEffortsNotGiven(self):
-		self._check(['i_TDD CPRI H', 'RealRemaining effort_TDD CPRI H'], lambda cols: cols[0] == 'x'
-			and self._effInvalid(cols[1]), banner = "CPRIHEffortsNotGiven")
+		self._check(['i_TDD CPRI H', 'RealRemaining effort_TDD CPRI H', 'COMMON DEV STATUS'], lambda cols: cols[0] == 'x'
+			and self._effInvalid(cols[1]) and cols[2] != 'done' and cols[2] != 'obsolete',
+			banner = "CPRIHEffortsNotGiven")
 
 	def checkFTEffortsNotGiven(self):
-		self._check(['i_FT', 'Feature Team', 'RealRemaining effort_FT'], lambda cols: cols[0] == 'x'
+		self._check(['i_FT', 'Feature Team', 'RealRemaining effort_FT', 'COMMON DEV STATUS'], lambda cols: cols[0] == 'x'
 			and (cols[1] == 'HZ03' or cols[1] == 'HZ04')
-			and self._effInvalid(cols[2]), banner = "FTEffortsNotGiven")
+			and self._effInvalid(cols[2]) and cols[3] != 'done' and cols[3] != 'obsolete',
+			banner = "FTEffortsNotGiven")
 
 	def _check(self, columnsForFilter, filterCriteria, banner):
 		#Generic checker

@@ -63,9 +63,10 @@ class RABacklogGenerator(object):
 				'i_TDD CPRI H',
 				'Site_BTSOM', 'OM LTE_Site', 'OMRefa_Site',
 		]
+		mayHaveImpacts = lambda x: x == 'x' or x == 'u'  #TM impacts or our imacts
 		filterCriteria = lambda cols : (cols[0] == "TDD-AifSiteS") \
-				or ( ((cols[1] == 'x') or (cols[1] == 'u') ) and ((cols[2] == 'HZ03') or (cols[2]  == 'HZ04')) )\
-				or ( (cols[3] == 'x') or (cols[3] == 'u') ) \
+				or ( mayHaveImpacts(cols[1]) and ((cols[2] == 'HZ03') or (cols[2]  == 'HZ04')) )\
+				or ( mayHaveImpacts(cols[3]) ) \
 				or (cols[4] == 'Hzu') or (cols[5] == 'Hzu') or (cols[6] == 'Hzu') 
 		rowIds = self._fbp.filterRowsByColPred(columnsForRAChecking, filterCriteria)
 		self._logger.info("Totally %d records filtered from upstream FBP file", len(rowIds))

@@ -178,7 +178,6 @@ class DataHandler(object):
 
 	def purgeDoneFeatures(self):
 		'''Perge the done features if all its sub-features and the parent feature is done'''
-		self._fidIndex = self._hdr.index('Feature or Subfeature')
 		self._raIndex = self._hdr.index('Requirement Area')
 		statusIndex = self._hdr.index("COMMON DEV STATUS")
 		isFeatureInMyRA = lambda row: row[self._raIndex] == 'TDD-AifSiteS'
@@ -186,24 +185,28 @@ class DataHandler(object):
 
 		#Filter through second-level features as parent
 		# A feature will be removed if all the sub-features of its parent is done
-		isFeatureDone = lambda status: status == 'done' or status == 'obsolete'
-		secondLevelParents = [row for row in self._data if isFeatureDone(row[statusIndex])]
-		parentFeatureList = list(set([row[self._fidIndex] for row in secondLevelParents if row[self._fidIndex].count('-') <= 1]))
+		isFeatureDone = lambda row: row[statusIndex] == 'done' or row[statusIndex] == 'obsolete'
+		getFid = lambda row: row[self._fidIndex]
+		isSubFeature = lambda child, parent: getFid(child).find(getFid(parent)) == 0
+
+		doneFeatures = [row for row in self._data if isFeatureDone(row)]
+		parentFeatureList = [row for row in doneFeatures if getFid(row).count('-') <= 1]
+
 		keepList = []
 		for parent in parentFeatureList:
-			unDones = [row for row in self._data if row[self._fidIndex].find(parent) == 0 \
-						and (not isFeatureDone(row[statusIndex]))]
+			unDones = [row for row in self._data if isSubFeature(row, parent) and (not isFeatureDone(row))]
 			unDonesInRA = [row for row in unDones if isFeatureInMyRA(row)]
 			#Have unDone features, and (have raUnDones or parent lead by RA) 
 			if len(unDones) > 0 and ((len(unDonesInRA) > 0) or isFeatureInMyRA(parent)):
 				keepList.append(parent)
 				self._logger.info('Parent feature %s will be kept since below features undone:%s',
-						parent, ','.join([row[self._fidIndex] for row in unDones]))
+						getFid(parent), ','.join([row[self._fidIndex] for row in unDones]))
 
-		for featureName in [featureName for featureName in parentFeatureList if featureName not in keepList]:
+		for parent in [row for row in parentFeatureList if row not in keepList]:
 			#remove all sub-features
-			for row in [row for row in self._data if row[self._fidIndex].find(featureName) == 0]:
-				self._logger.debug('Remove done/obsolete feature:%s since all feature group is done/obsolete!', row[self._fidIndex]);
+			for row in [row for row in self._data if isSubFeature(row, parent)]:
+				self._logger.debug('Remove done/obsolete feature:%s(subfeture of %s) as whole feature is done/obsolete!',
+						getFid(row), getFid(parent));
 				self._data.remove(row)
 		self._logger.info('Leftover feature number:%d, removed:%d', len(self._data) - 1, rowCnt - len(self._data))
 

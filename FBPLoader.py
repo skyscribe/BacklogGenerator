@@ -56,3 +56,9 @@ class FBPLoader(object):
 	
 	def getBacklogSheetObj(self):
 		return self._fbp
+
+	def getFieldForRow(self, rowId, colHderName):
+		if not self._fbpIndexMap.has_key(colHderName):
+			self._logger.error("required column %s not existed!", colHderName)
+			raise Exception("Invalid col header:%s"%colHderName)
+		return self._fbp.cell(rowId, self._fbpIndexMap[colHderName]).value

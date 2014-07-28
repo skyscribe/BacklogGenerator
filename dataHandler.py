@@ -162,7 +162,7 @@ class DataHandler(object):
 		eraseList = []
 		for rowData in self._srcData:
 			fid = rowData[self._fidIndex]
-			if fid.startswith("LBT") or fid.startswith("lbt") or fid.startswith("LTE") or fid.startswith("lte"):
+			if fid.startswith("LBT") or fid.startswith("lbt") or fid.startswith("LTE") or fid.startswith("lte") or fid.startswith('CT'):
 				if not self._isFidValidInUpstream(rowData[self._fidIndex]):
 					self._logger.warning("Tag %s as to be removed since it's no longer a valid official feature in FBP now", fid)
 					eraseList.append(rowData)

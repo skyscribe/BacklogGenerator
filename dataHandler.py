@@ -160,9 +160,10 @@ class DataHandler(object):
 	def _removeDangling(self):
 		''' Remove dangling old records'''
 		eraseList = []
+		officialFeaturePrefixes = ['LBT', 'LTE', 'CT']
 		for rowData in self._srcData:
 			fid = rowData[self._fidIndex]
-			if fid.startswith("LBT") or fid.startswith("lbt") or fid.startswith("LTE") or fid.startswith("lte") or fid.startswith('CT'):
+			if len([1 for prefix in officialFeaturePrefixes if fid.upper().startswith(prefix) ]) > 0:
 				if not self._isFidValidInUpstream(rowData[self._fidIndex]):
 					self._logger.warning("Tag %s as to be removed since it's no longer a valid official feature in FBP now", fid)
 					eraseList.append(rowData)

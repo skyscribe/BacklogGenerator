@@ -58,7 +58,8 @@ class FBPLoader(object):
 		return self._fbp
 
 	def getFieldForRow(self, rowId, colHderName):
-		if not self._fbpIndexMap.has_key(colHderName):
+		if self._headData.count(colHderName) == 0:
 			self._logger.error("required column %s not existed!", colHderName)
+			self._logger.debug("existing headers:%s", ','.join([hdr for hdr in self._headData]))
 			raise Exception("Invalid col header:%s"%colHderName)
-		return self._fbp.cell(rowId, self._fbpIndexMap[colHderName]).value
+		return self._fbp.cell(rowId, self._headData.index(colHderName)).value

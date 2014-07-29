@@ -143,13 +143,13 @@ class DataHandler(object):
 				if newValue == u'default': newValue = ''
 
 				if self._shouldRetainCol(col):
-					self._logger.info("Retaining %s:%s - local:%s, new:%s, take local value though new value is different",
+					self._logger.info("Retaining per policy %s:%s - local:%s, new:%s, take local value though new value is different",
 								rowRecord[self._fidIndex], self._hdr[col], localValue, newValue)
 					rowRecord[col] = localValue #New value is "", keep local
 				else:
-					#overwritten
+					#overwritten 
 					rowRecord[col] = newValue #keep new value and overwrite local
-					self._logger.info("Overwritting %s:%s - local:%s, new:%s, take new value anyway since this is imported field",
+					self._logger.info("Overwritting per policy %s:%s - local:%s, new:%s, take new value anyway since this is imported field",
 							rowRecord[self._fidIndex], self._hdr[col], localValue, newValue)
 		if len(conflictColIds) > 0:
 			rowRecord[self._hintIndex] = unicode(','.join([str(id) for id in conflictColIds]))

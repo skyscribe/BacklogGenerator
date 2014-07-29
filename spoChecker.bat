@@ -1,5 +1,5 @@
 @echo "checking..."
 
-python -c "import spotool; spotool.checkTODO();"
+python -c "import spotool; spotool.checkAll();"
 
 @echo "done..."

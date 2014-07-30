@@ -12,6 +12,7 @@ class FBPChecker(object):
 		self._fbp = FBPLoader(fbpFileAbsPath, fbpSheetName)
 		self._rabp = FBPLoader(raBacklogPath, u'backlog', headerIdx = 0, retainAllReqHdrs = True)
 		self._effInvalid = lambda eff: str(eff) == '' or (not str(eff).replace('.', '').isdigit()) or int(eff) <= 1
+		self._wrappedBanner = lambda banner: '%s %s %s'%('='*30, banner, '='*30)
 
 	def checkAll(self):
 		self.checkTODO()
@@ -47,20 +48,22 @@ class FBPChecker(object):
 				columnsForRAFilter = ['Remaining EE'],
 				getResultFBP = lambda cols: getSumOfEfforts(cols[1:]), 
 				getResultRA = lambda cols: cols[0] != '' and int(cols[0]) or 0,
-				checker = lambda x, y : x == y
+				checker = lambda x, y : x == y,
+				banner = "Remaining EE and FBP EE summary mismatch"
 				)
 
 	def _check(self, columnsForFilter, filterCriteria, banner):
 		#Generic checker
-		self._logger.info("=================Tasks %s beg=============", banner)
+		self._logger.info(self._wrappedBanner("Tasks " + banner + " beg"))
 		for row in self._fbp.filterRowsByColPred(columnsForFilter, filterCriteria):
 			fid = self._fbp.getFieldForRow(row, 'Feature or Subfeature')
 			self._logger.debug("Check this feature:%s, details=<%s>", fid, ','.join(
 				['%s = %s' % (col, self._fbp.getFieldForRow(row, col)) for col in columnsForFilter]))
-		self._logger.info("=================Tasks %s end=============", banner)
+		self._logger.info(self._wrappedBanner("Tasks " + banner + " end"))
 
-	def _crossCheck(self, columnsForFilter, filterCriteria1, columnsForRAFilter, getResultFBP, getResultRA, checker):
+	def _crossCheck(self, columnsForFilter, filterCriteria1, columnsForRAFilter, getResultFBP, getResultRA, checker, banner):
 		# cross checker
+		self._logger.info(self._wrappedBanner("Cross checker " + banner + " beg"))
 		for row in self._fbp.filterRowsByColPred(columnsForFilter, filterCriteria1):
 			fid = self._fbp.getFieldForRow(row, 'Feature or Subfeature')
 			rows = self._rabp.filterRowsByColPred(['Feature or Subfeature'], lambda cols: cols[0] == fid)
@@ -81,7 +84,7 @@ class FBPChecker(object):
 				self._logger.warning("Checker on feature:%s failed, FBP details:%s, RA details:%s, resultFBP:%s, resultRA:%s",
 						fid, getKVStr(columnsForFilter, FBPValues), getKVStr(columnsForRAFilter, RAValues),
 						resultFBP, resultRA)
-
+		self._logger.info(self._wrappedBanner("Cross checker " + banner + " end"))
 
 
 def checkAll():

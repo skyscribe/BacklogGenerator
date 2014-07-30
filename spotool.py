@@ -81,7 +81,7 @@ class FBPChecker(object):
 				pass
 			else:
 				getKVStr = lambda klist, vlist: ", ".join(['%s=%s'%(k,v) for k,v in zip(klist, vlist)])
-				self._logger.warning("Checker on feature:%s failed, FBP details:%s, RA details:%s, resultFBP:%s, resultRA:%s",
+				self._logger.warning("Checker on feature:%s failed, FBP details:<%s>, RA details:<%s>, resultFBP:%s, resultRA:%s",
 						fid, getKVStr(columnsForFilter, FBPValues), getKVStr(columnsForRAFilter, RAValues),
 						resultFBP, resultRA)
 		self._logger.info(self._wrappedBanner("Cross checker " + banner + " end"))

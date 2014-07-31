@@ -14,16 +14,19 @@ class FBPChecker(object):
 		self._effInvalid = lambda eff: str(eff) == '' or (not str(eff).replace('.', '').isdigit()) or int(eff) <= 1
 		self._wrappedBanner = lambda banner: '%s %s %s'%('='*30, banner, '='*30)
 
+		self._isOurFT = lambda ftCol: ftCol.upper() == 'HZ03' or ftCol.upper() == 'HZ04'
+
 	def checkAll(self):
 		self.checkTODO()
 		self.checkConflicts()
 		self.checkForCPRIHEffortsNotGiven()
 		self.checkFTEffortsNotGiven()
 		self.checkEEMismatch()
+		self.checkFBTargetMismatch()
 
 	def checkTODO(self):
 		self._check(['Status_TDD CPRI H', 'Common FB plan', 'Clarification of Scope', 'TDD Release'],
-			lambda cols: cols[0] == 'no plan' and (not cols[1].endswith('park')), banner = 'TODO')
+			lambda cols: cols[0] == 'no plan' and (not cols[1].endswith('park')), banner = 'not planned')
 
 	def checkConflicts(self):
 		self._check(['Status_TDD CPRI H', 'i_TDD CPRI H'], lambda cols: cols[0] == 'obsolete' 
@@ -40,6 +43,15 @@ class FBPChecker(object):
 			and self._effInvalid(cols[2]) and cols[3] != 'done' and cols[3] != 'obsolete',
 			banner = "FTEffortsNotGiven")
 
+	def _check(self, columnsForFilter, filterCriteria, banner):
+		#Generic checker
+		self._logger.info(self._wrappedBanner("Tasks " + banner + " beg"))
+		for row in self._fbp.filterRowsByColPred(columnsForFilter, filterCriteria):
+			fid = self._fbp.getFieldForRow(row, 'Feature or Subfeature')
+			self._logger.debug("Check this feature:%s, details=<%s>", fid, ','.join(
+				['%s = %s' % (col, self._fbp.getFieldForRow(row, col)) for col in columnsForFilter]))
+		self._logger.info(self._wrappedBanner("Tasks " + banner + " end"))
+
 	def checkEEMismatch(self):
 		getSumOfEfforts = lambda cols: sum([int(col) for col in cols if col != ''])
 		self._crossCheck(
@@ -52,14 +64,30 @@ class FBPChecker(object):
 				banner = "Remaining EE and FBP EE summary mismatch"
 				)
 
-	def _check(self, columnsForFilter, filterCriteria, banner):
-		#Generic checker
-		self._logger.info(self._wrappedBanner("Tasks " + banner + " beg"))
-		for row in self._fbp.filterRowsByColPred(columnsForFilter, filterCriteria):
-			fid = self._fbp.getFieldForRow(row, 'Feature or Subfeature')
-			self._logger.debug("Check this feature:%s, details=<%s>", fid, ','.join(
-				['%s = %s' % (col, self._fbp.getFieldForRow(row, col)) for col in columnsForFilter]))
-		self._logger.info(self._wrappedBanner("Tasks " + banner + " end"))
+	def checkFBTargetMismatch(self):
+		hasFBPlan = lambda col: col.lower().startswith('fb')
+		planToNumber = lambda plan: int(plan[2:].replace(".", ""))
+		def fbNoLaterThan(x, y):
+			if (not hasFBPlan(y)): return True #x always not late
+			else:
+				if hasFBPlan(x): return planToNumber(x) <= planToNumber(y)
+				else: return False
+
+		self._crossCheck(
+				columnsForFilter = ['Common FB plan', 'Feature Team', 'FB_FT', 'FB_TDD CPRI H', 'FB_BTSOM', 'OMRefa_Site'],
+				filterCriteria1 = lambda cols: \
+						(not cols[0].endswith('park'))  # parks - don't plan 
+						and (
+								(self._isOurFT(cols[1]) and hasFBPlan(cols[2])) 	 #FT planned 
+								or hasFBPlan(cols[3])                           	 #TDDCPRIH planned
+								or (hasFBPlan(cols[4]) and cols[5].lower() == 'hzu') #OMHz planned
+							),
+				columnsForRAFilter = ['FB Target'],
+				getResultFBP = lambda cols: filter(lambda fb: fb.lower().startswith('fb'), cols[2:-1]), #All sensible FBs
+				getResultRA = lambda cols: cols[0],
+				checker = lambda x, y: len(list(set(x))) == 1 and fbNoLaterThan(y, x[0]),
+				banner = "FB Target not compliant with FBP SC/FT planning"
+			)
 
 	def _crossCheck(self, columnsForFilter, filterCriteria1, columnsForRAFilter, getResultFBP, getResultRA, checker, banner):
 		# cross checker
@@ -68,8 +96,8 @@ class FBPChecker(object):
 			fid = self._fbp.getFieldForRow(row, 'Feature or Subfeature')
 			rows = self._rabp.filterRowsByColPred(['Feature or Subfeature'], lambda cols: cols[0] == fid)
 			if len(rows) == 0:
-				self._logger.warning("This row checker is skipped, please check this feature:%s, details=<%s>", fid, ','.join(
-						['%s = %s' % (col, self._fbp.getFieldForRow(row, col)) for col in columnsForFilter]))
+				#self._logger.warning("This row checker is skipped, please check this feature:%s, details=<%s>", fid, ','.join(
+				#		['%s = %s' % (col, self._fbp.getFieldForRow(row, col)) for col in columnsForFilter]))
 				continue
 
 			getColValues = lambda loader, record, colNames: [loader.getFieldForRow(record, colName) for colName in colNames]

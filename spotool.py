@@ -17,12 +17,14 @@ class FBPChecker(object):
 		self._isOurFT = lambda ftCol: ftCol.upper() == 'HZ03' or ftCol.upper() == 'HZ04'
 
 	def checkAll(self):
+		self._logger.info("@"*80 + "Checking started")
 		self.checkTODO()
 		self.checkConflicts()
 		self.checkForCPRIHEffortsNotGiven()
 		self.checkFTEffortsNotGiven()
 		self.checkEEMismatch()
 		self.checkFBTargetMismatch()
+		self._logger.info("@"*80 + "Checking done" + "\n" * 3)
 
 	def checkTODO(self):
 		self._check(['Status_TDD CPRI H', 'Common FB plan', 'Clarification of Scope', 'TDD Release'],
@@ -48,7 +50,7 @@ class FBPChecker(object):
 		self._logger.info(self._wrappedBanner("Tasks " + banner + " beg"))
 		for row in self._fbp.filterRowsByColPred(columnsForFilter, filterCriteria):
 			fid = self._fbp.getFieldForRow(row, 'Feature or Subfeature')
-			self._logger.debug("Check this feature:%s, details=<%s>", fid, ','.join(
+			self._logger.debug("Checker[%s] on this feature:%s, details=<%s>", banner, fid, ','.join(
 				['%s = %s' % (col, self._fbp.getFieldForRow(row, col)) for col in columnsForFilter]))
 		self._logger.info(self._wrappedBanner("Tasks " + banner + " end"))
 
@@ -66,26 +68,29 @@ class FBPChecker(object):
 
 	def checkFBTargetMismatch(self):
 		hasFBPlan = lambda col: col.lower().startswith('fb')
-		planToNumber = lambda plan: int(plan[2:].replace(".", ""))
+		planToNumber = lambda plan: int(plan[len('fb'):].replace(".", ""))
 		def fbNoLaterThan(x, y):
 			if (not hasFBPlan(y)): return True #x always not late
 			else:
 				if hasFBPlan(x): return planToNumber(x) <= planToNumber(y)
 				else: return False
+		getEarliestFB = lambda fbList: reduce(lambda x, y: fbNoLaterThan(x, y) and x or y, fbList, '')
+		getLatestFB = lambda fbList: reduce(lambda x, y: fbNoLaterThan(x, y) and y or x, fbList, '')
 
 		self._crossCheck(
-				columnsForFilter = ['Common FB plan', 'Feature Team', 'FB_FT', 'FB_TDD CPRI H', 'FB_BTSOM', 'OMRefa_Site'],
+				columnsForFilter = ['Common FB plan', 'Feature Team', 'FB_FT', 'FB_TDD CPRI H', 'FB_BTSOM', 'OMRefa_Site', 'COMMON DEV STATUS'],
 				filterCriteria1 = lambda cols: \
-						(not cols[0].endswith('park'))  # parks - don't plan 
+						(not cols[0].endswith('park'))  # parks - don't plan
+						and (str(cols[-1]).lower() != 'done') # don't check done features 
 						and (
 								(self._isOurFT(cols[1]) and hasFBPlan(cols[2])) 	 #FT planned 
 								or hasFBPlan(cols[3])                           	 #TDDCPRIH planned
 								or (hasFBPlan(cols[4]) and cols[5].lower() == 'hzu') #OMHz planned
 							),
 				columnsForRAFilter = ['FB Target'],
-				getResultFBP = lambda cols: filter(lambda fb: fb.lower().startswith('fb'), cols[2:-1]), #All sensible FBs
+				getResultFBP = lambda cols: filter(lambda fb: fb.lower().startswith('fb'), cols[2:-2]), #All sensible FBs
 				getResultRA = lambda cols: cols[0],
-				checker = lambda x, y: len(list(set(x))) == 1 and fbNoLaterThan(y, x[0]),
+				checker = lambda x, y: fbNoLaterThan(y, getLatestFB(x)), # y <= latestestFB
 				banner = "FB Target not compliant with FBP SC/FT planning"
 			)
 
@@ -109,8 +114,8 @@ class FBPChecker(object):
 				pass
 			else:
 				getKVStr = lambda klist, vlist: ", ".join(['%s=%s'%(k,v) for k,v in zip(klist, vlist)])
-				self._logger.warning("Checker on feature:%s failed, FBP details:<%s>, RA details:<%s>, resultFBP:%s, resultRA:%s",
-						fid, getKVStr(columnsForFilter, FBPValues), getKVStr(columnsForRAFilter, RAValues),
+				self._logger.warning("Checker[%s] on feature:%s failed, FBP details:<%s>, RA details:<%s>, resultFBP:%s, resultRA:%s",
+						banner, fid, getKVStr(columnsForFilter, FBPValues), getKVStr(columnsForRAFilter, RAValues),
 						resultFBP, resultRA)
 		self._logger.info(self._wrappedBanner("Cross checker " + banner + " end"))
 

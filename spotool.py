@@ -15,6 +15,7 @@ class FBPChecker(object):
 		self._wrappedBanner = lambda banner: '%s %s %s'%('='*30, banner, '='*30)
 
 		self._isOurFT = lambda ftCol: ftCol.upper() == 'HZ03' or ftCol.upper() == 'HZ04'
+		self._isStatusDone = lambda st: st == 'done' or st == 'obsolete'
 
 	def checkAll(self):
 		self._logger.info("@"*80 + "Checking started")
@@ -35,14 +36,17 @@ class FBPChecker(object):
 			and (cols[1] == 'x' or cols[1] == 'u'), banner = "StatusConflictCheckOnCPRIH")
 
 	def checkForCPRIHEffortsNotGiven(self):
-		self._check(['i_TDD CPRI H', 'RealRemaining effort_TDD CPRI H', 'COMMON DEV STATUS'], lambda cols: cols[0] == 'x'
-			and self._effInvalid(cols[1]) and cols[2] != 'done' and cols[2] != 'obsolete',
+		self._check(['i_TDD CPRI H', 'Status_TDD CPRI H', 'RealRemaining effort_TDD CPRI H', 'COMMON DEV STATUS'], 
+			filterCriteria = lambda cols: cols[0] == 'x' and (not self._isStatusDone(cols[1])) \
+										and self._effInvalid(cols[2]) and (not self._isStatusDone(cols[3])),
 			banner = "CPRIHEffortsNotGiven")
 
 	def checkFTEffortsNotGiven(self):
-		self._check(['i_FT', 'Feature Team', 'RealRemaining effort_FT', 'COMMON DEV STATUS'], lambda cols: cols[0] == 'x'
-			and (cols[1] == 'HZ03' or cols[1] == 'HZ04')
-			and self._effInvalid(cols[2]) and cols[3] != 'done' and cols[3] != 'obsolete',
+		self._check(['i_FT', 'Feature Team', 'RealRemaining effort_FT', 'Status_FT', 'COMMON DEV STATUS'], 
+			filterCriteria = lambda cols: cols[0] == 'x'
+								and (self._isOurFT(cols[1]) and (not self._isStatusDone(cols[3])))
+								and self._effInvalid(cols[2])  
+								and (not self._isStatusDone(cols[-1])), 
 			banner = "FTEffortsNotGiven")
 
 	def _check(self, columnsForFilter, filterCriteria, banner):
@@ -58,7 +62,7 @@ class FBPChecker(object):
 		getSumOfEfforts = lambda cols: sum([int(col) for col in cols if col != ''])
 		self._crossCheck(
 				columnsForFilter = ['Feature Team', 'RealRemaining effort_FT', 'RealRemaining effort_TDD CPRI H', 'RealRemaining effort_OMRefa'],
-				filterCriteria1 = lambda cols: (cols[0] == 'HZ03' or cols[0] == 'HZ04') and getSumOfEfforts(cols[1:]) > 0,
+				filterCriteria1 = lambda cols: (self._isOurFT(cols[0])) and getSumOfEfforts(cols[1:]) > 0,
 				columnsForRAFilter = ['Remaining EE'],
 				getResultFBP = lambda cols: getSumOfEfforts(cols[1:]), 
 				getResultRA = lambda cols: cols[0] != '' and int(cols[0]) or 0,

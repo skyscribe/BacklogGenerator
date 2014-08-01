@@ -58,16 +58,23 @@ class RABacklogGenerator(object):
 
 	def generate(self):
 		''' Generate OM RA backlog per filtering/merge/purge/sort '''
+		mayHaveImpacts = lambda x: x == 'x' or x == 'u'  #TM impacts or our imacts
+		isStatusDone = lambda st: st.lower() == 'done' or st.lower() == 'obsolete'
+
 		columnsForRAChecking = ['Requirement Area',
 				'i_FT', 'Feature Team',
 				'i_TDD CPRI H',
 				'Site_BTSOM', 'OM LTE_Site', 'OMRefa_Site',
+				'COMMON DEV STATUS',
 		]
-		mayHaveImpacts = lambda x: x == 'x' or x == 'u'  #TM impacts or our imacts
-		filterCriteria = lambda cols : (cols[0] == "TDD-AifSiteS") \
-				or ( mayHaveImpacts(cols[1]) and ((cols[2] == 'HZ03') or (cols[2]  == 'HZ04')) )\
-				or ( mayHaveImpacts(cols[3]) ) \
-				or (cols[4] == 'Hzu') or (cols[5] == 'Hzu') or (cols[6] == 'Hzu') 
+
+		filterCriteria = lambda cols : (
+				(not isStatusDone(cols[-1]))  # feature not done/obsolete 
+				and ((cols[0] == "TDD-AifSiteS")  # AIF RAM
+					or (mayHaveImpacts(cols[1]) and ((cols[2] == 'HZ03') or (cols[2]  == 'HZ04')) ) #FT impacts
+					or mayHaveImpacts(cols[3])   # TDD CPRI Impacts
+					or (cols[4] == 'Hzu') or (cols[5] == 'Hzu') or (cols[6] == 'Hzu') #OAM impacts
+				))
 		rowIds = self._fbp.filterRowsByColPred(columnsForRAChecking, filterCriteria)
 		self._logger.info("Totally %d records filtered from upstream FBP file", len(rowIds))
 
